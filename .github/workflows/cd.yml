@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: earlyexpress/config-server
+  IMAGE_NAME: earlyexpress/default-server
   VERSION: latest
 
 jobs:
