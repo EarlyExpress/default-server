@@ -39,6 +39,11 @@ public class SecurityConfig {
                 // CORS 설정
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+                // ⭐ H2 Console을 위한 Headers 설정 추가
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                )
+
                 // 세션 사용하지 않음 (Stateless)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -53,18 +58,13 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // Health check
                         .requestMatchers("/health", "/info").permitAll()
+                        // ⭐ H2 Console 추가
+                        .requestMatchers("/h2-console/**").permitAll()
                         // 모든 요청 허용 (개발 초기 단계)
                         .anyRequest().permitAll()
                 );
 
-        // OAuth2 Resource Server 설정 (주석 처리 - 필요시 활성화)
-        // .oauth2ResourceServer(oauth2 -> oauth2
-        //     .jwt(jwt -> jwt
-        //         .jwtAuthenticationConverter(jwtAuthenticationConverter())
-        //     )
-        // );
-
-        log.info("Security configuration completed - All endpoints are currently open");
+        log.info("Security configuration completed - All endpoints are currently open (including H2 Console)");
 
         return http.build();
     }
@@ -106,17 +106,4 @@ public class SecurityConfig {
 
         return source;
     }
-
-    // JWT 인증 컨버터 (필요시 활성화)
-    // @Bean
-    // public JwtAuthenticationConverter jwtAuthenticationConverter() {
-    //     JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-    //     authoritiesConverter.setAuthorityPrefix("ROLE_");
-    //     authoritiesConverter.setAuthoritiesClaimName("roles");
-    //
-    //     JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-    //     converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-    //
-    //     return converter;
-    // }
 }

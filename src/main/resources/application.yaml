@@ -1,176 +1,138 @@
+# ========================================
+# 마이크로서비스 개별 설정
+# Config Server의 공통 설정을 상속받고 서비스별 고유 설정만 정의
+# ========================================
+
 spring:
+  # ===== 서비스 식별 정보 =====
   application:
-    name: ${APP_NAME:default-server}
+    name: ${APP_NAME:default-server}  # 서비스명 (Eureka 등록, 로깅, 메트릭에 사용)
 
+  # ===== 프로파일 설정 =====
   profiles:
-    active: ${APP_PROFILE:local}
+    active: ${APP_PROFILE:local}  # 활성 프로파일 (local, dev, staging, prod)
 
-  # Config Server 설정 - Eureka를 통한 자동 탐색
+  # ===== Config Server 연결 설정 =====
+  # Eureka를 통해 Config Server를 자동으로 찾아 설정을 가져옴
   config:
-    import: 'optional:configserver:'
-
-  # Spring Cloud 통합 설정
+    import: 'optional:configserver:'  # Config Server 설정 import (optional: 없어도 실행 가능)
   cloud:
-    # Config Server Discovery 설정
     config:
       discovery:
-        enabled: true
-        service-id: config-server
-      allow-override: true
-      override-none: true
-      override-system-properties: false
-      fail-fast: false # 개발 환경에서 Config Server 없이도 실행 가능
+        enabled: true  # Eureka를 통한 Config Server 자동 탐색
+        service-id: config-server  # Config Server의 Eureka 서비스 ID
+      allow-override: true  # 로컬 설정으로 Config Server 설정 오버라이드 허용
+      override-none: true  # Config Server 설정이 없을 때 로컬 설정 사용
+      override-system-properties: false  # 시스템 프로퍼티는 오버라이드하지 않음
+      fail-fast: false  # Config Server 연결 실패시에도 애플리케이션 시작 (개발 환경용)
       retry:
-        initial-interval: 1000
-        max-attempts: 3
-        max-interval: 2000
-        multiplier: 1.1
+        initial-interval: 1000  # 초기 재시도 간격 (1초)
+        max-attempts: 3  # 최대 재시도 횟수
+        max-interval: 2000  # 최대 재시도 간격 (2초)
+        multiplier: 1.1  # 재시도 간격 증가율
 
-    # Kafka Stream 설정
-    stream:
-      kafka:
-        binder:
-          brokers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
-          auto-create-topics: true
-          replication-factor: 3
-          min-partition-count: 3
-      bindings:
-        # 예제 바인딩 - 실제 사용시 수정
-        input:
-          destination: ${spring.application.name}-input
-          group: ${spring.application.name}-group
-          consumer:
-            concurrency: 3
-        output:
-          destination: ${spring.application.name}-output
-          producer:
-            partition-count: 3
-
-  # Database 설정
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:default_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 30000
-      maximum-pool-size: 10
-      minimum-idle: 5
-      idle-timeout: 600000
-      max-lifetime: 1800000
-
-  # JPA 설정
-  jpa:
-    hibernate:
-      ddl-auto: create-drop  # 개발 환경용 - 운영에서는 validate로 변경 필요
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        default_schema: app
-        jdbc:
-          batch_size: 20
-        order_inserts: true
-        order_updates: true
-    show-sql: false
-
-  # Kafka 설정
+  # ===== Kafka 메시징 설정 =====
   kafka:
+    # Kafka 브로커 클러스터 주소
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
 
-    # Producer 설정
+    # ----- Producer(생산자) 설정 -----
     producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer  # 키 직렬화
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer  # 값 직렬화 (JSON)
+      acks: all  # 모든 복제본 확인 (최고 신뢰성)
+      retries: 3  # 전송 실패 시 재시도 횟수
       properties:
-        enable.idempotence: true
-        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true  # 멱등성 보장 (중복 방지)
+        max.in.flight.requests.per.connection: 5  # 동시 전송 가능한 요청 수
 
-    # Consumer 설정
+    # ----- Consumer(소비자) 설정 -----
     consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}-group}
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      auto-offset-reset: earliest
-      enable-auto-commit: false
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}-group}  # 컨슈머 그룹 ID
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer  # 키 역직렬화
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer  # 값 역직렬화 (JSON)
+      auto-offset-reset: earliest  # 오프셋 리셋 정책 (처음부터 읽기)
+      enable-auto-commit: false  # 수동 커밋 모드 (트랜잭션 보장)
       properties:
-        spring.json.trusted.packages: "*"
-        isolation.level: read_committed
+        spring.json.trusted.packages: "*"  # 모든 패키지 신뢰 (역직렬화 허용)
+        isolation.level: read_committed  # 커밋된 메시지만 읽기 (트랜잭션 지원)
 
-    # Listener 설정
+    # ----- Listener 설정 -----
     listener:
-      ack-mode: manual
-      concurrency: 3
+      ack-mode: manual  # 수동 승인 모드 (메시지 처리 보장)
+      concurrency: 3  # 동시 처리 리스너 수
 
-# Server 포트 설정
+# ===== 서버 포트 설정 =====
 server:
-  port: ${APP_PORT:4000}
-  shutdown: graceful
+  port: ${APP_PORT:4000}  # 서비스 포트 (환경변수로 오버라이드 가능)
+  shutdown: graceful  # 종료 (진행중인 요청 완료 후 종료)
 
-# Eureka 설정
+# ===== Eureka Client 설정 =====
+# 서비스 디스커버리를 위한 Eureka 등록 설정
 eureka:
   instance:
-    prefer-ip-address: false  # hostname 사용
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:${spring.application.name}}
-    instance-id: ${eureka.instance.hostname}:${server.port}
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
-    metadata-map:
-      zone: ${ENVIRONMENT:local}
-      version: ${version:0.0.1-SNAPSHOT}
+    prefer-ip-address: false  # hostname 사용 (true: IP 주소 사용)
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${spring.application.name}}  # 인스턴스 호스트명
+    instance-id: ${eureka.instance.hostname}:${server.port}  # 고유 인스턴스 ID
+    lease-renewal-interval-in-seconds: 10  # 하트비트 전송 간격 (10초)
+    lease-expiration-duration-in-seconds: 30  # 하트비트 만료 시간 (30초)
+    metadata-map:  # 인스턴스 메타데이터
+      zone: ${ENVIRONMENT:local}  # 배포 존 정보
+      version: ${version:0.0.1-SNAPSHOT}  # 서비스 버전
   client:
-    register-with-eureka: true
-    fetch-registry: true
+    register-with-eureka: true  # Eureka 서버에 등록
+    fetch-registry: true  # Eureka 레지스트리 정보 가져오기
     service-url:
+      # Eureka 서버 URL (고가용성을 위해 2개 서버 지정)
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:3150/eureka/,http://localhost:3151/eureka/}
-    registry-fetch-interval-seconds: 5
+    registry-fetch-interval-seconds: 5  # 레지스트리 갱신 간격 (5초)
 
-# Actuator 설정
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus,env,configprops
-  endpoint:
-    health:
-      show-details: always
-  tracing:
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_BASE_URL:http://localhost:9411}/api/v2/spans
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    # 프록시 환경에서 중요: 상대 경로 사용
+    disable-swagger-default-url: true
+    # OAuth2 리디렉션 URL (프록시 고려)
+    oauth2-redirect-url: /swagger-ui/oauth2-redirect.html
+  # 실제 서버 URL 설정 (프록시 URL)
+  server:
+    url: http://localhost:4000
 
-# Logging 설정
-logging:
-  level:
-    com.earlyexpress: DEBUG
-    org.springframework.cloud: INFO
-    org.springframework.kafka: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/${spring.application.name}.log
-    max-size: 10MB
-    max-history: 30
 
-# WebClient 설정
-webclient:
-  timeout:
-    connection: ${WEBCLIENT_CONNECTION_TIMEOUT:5000}
-    read: ${WEBCLIENT_READ_TIMEOUT:10000}
-    write: ${WEBCLIENT_WRITE_TIMEOUT:10000}
-  max-memory-size: ${WEBCLIENT_MAX_MEMORY_SIZE:10485760}  # 10MB
-  connection-provider:
-    max-connections: ${WEBCLIENT_MAX_CONNECTIONS:500}
-    max-idle-time: 20s
-    max-life-time: 60s
-    pending-acquire-timeout: 60s
-    evict-in-background: 120s
+# ========================================
+# 서비스별 커스터마이징이 필요한 설정 예시
+# ========================================
+
+# 예시 1: 특정 서비스만 다른 DB 스키마 사용
+# spring:
+#   jpa:
+#     properties:
+#       hibernate:
+#         default_schema: custom_schema
+
+# 예시 2: 특정 서비스의 Kafka 토픽 커스터마이징
+# spring:
+#   cloud:
+#     stream:
+#       bindings:
+#         input:
+#           destination: custom-topic-name
+#           group: custom-consumer-group
+
+# 예시 3: 특정 서비스의 로깅 레벨 조정
+# logging:
+#   level:
+#     com.earlyexpress.specific.package: TRACE
+
+# 예시 4: 특정 서비스의 Resilience4j 설정 오버라이드
+# resilience4j:
+#   circuitbreaker:
+#     instances:
+#       myService:
+#         baseConfig: default
+#         slidingWindowSize: 10
+#         failureRateThreshold: 60
