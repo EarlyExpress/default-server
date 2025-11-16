@@ -31,6 +31,37 @@ spring:
         max-interval: 2000  # 최대 재시도 간격 (2초)
         multiplier: 1.1  # 재시도 간격 증가율
 
+  # ===== Kafka 메시징 설정 =====
+  kafka:
+    # Kafka 브로커 클러스터 주소
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+
+    # ----- Producer(생산자) 설정 -----
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer  # 키 직렬화
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer  # 값 직렬화 (JSON)
+      acks: all  # 모든 복제본 확인 (최고 신뢰성)
+      retries: 3  # 전송 실패 시 재시도 횟수
+      properties:
+        enable.idempotence: true  # 멱등성 보장 (중복 방지)
+        max.in.flight.requests.per.connection: 5  # 동시 전송 가능한 요청 수
+
+    # ----- Consumer(소비자) 설정 -----
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}-group}  # 컨슈머 그룹 ID
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer  # 키 역직렬화
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer  # 값 역직렬화 (JSON)
+      auto-offset-reset: earliest  # 오프셋 리셋 정책 (처음부터 읽기)
+      enable-auto-commit: false  # 수동 커밋 모드 (트랜잭션 보장)
+      properties:
+        spring.json.trusted.packages: "*"  # 모든 패키지 신뢰 (역직렬화 허용)
+        isolation.level: read_committed  # 커밋된 메시지만 읽기 (트랜잭션 지원)
+
+    # ----- Listener 설정 -----
+    listener:
+      ack-mode: manual  # 수동 승인 모드 (메시지 처리 보장)
+      concurrency: 3  # 동시 처리 리스너 수
+
 # ===== 서버 포트 설정 =====
 server:
   port: ${APP_PORT:4000}  # 서비스 포트 (환경변수로 오버라이드 가능)
@@ -55,6 +86,22 @@ eureka:
       # Eureka 서버 URL (고가용성을 위해 2개 서버 지정)
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:3150/eureka/,http://localhost:3151/eureka/}
     registry-fetch-interval-seconds: 5  # 레지스트리 갱신 간격 (5초)
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    # 프록시 환경에서 중요: 상대 경로 사용
+    disable-swagger-default-url: true
+    # OAuth2 리디렉션 URL (프록시 고려)
+    oauth2-redirect-url: /swagger-ui/oauth2-redirect.html
+  # 실제 서버 URL 설정 (프록시 URL)
+  server:
+    url: http://localhost:4000
+
 
 # ========================================
 # 서비스별 커스터마이징이 필요한 설정 예시

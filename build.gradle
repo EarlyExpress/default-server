@@ -103,10 +103,15 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     // 개발 시 자동 재시작 지원
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    runtimeOnly 'com.h2database:h2'
 
     // ===== Environment Variables =====
     // .env 파일에서 환경변수 로드
     implementation 'io.github.cdimascio:dotenv-java:3.1.0'
+
+    // ===== API Documentation =====
+    // Swagger/OpenAPI 문서 자동 생성
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
 }
 
 dependencyManagement {
