@@ -6,12 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Component
 public class UserHeaderAuthenticationFilter extends OncePerRequestFilter {
@@ -24,6 +26,7 @@ public class UserHeaderAuthenticationFilter extends OncePerRequestFilter {
 
 		String path = request.getRequestURI();
 		String userId = request.getHeader("X-User-Id");
+		String role = request.getHeader("X-User-Role");
 
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		// 이미 인증된 경우 아무것도 하지 않음
@@ -36,7 +39,7 @@ public class UserHeaderAuthenticationFilter extends OncePerRequestFilter {
 
 		// 1) 헤더 기반 인증
 		if (userId != null) {
-			auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+			auth = new UsernamePasswordAuthenticationToken(userId, null, List.of(new SimpleGrantedAuthority(role)));
 		}
 		// 2) /signup 요청만 System 계정 인증 주입
 		else if (path.endsWith("/signup")) {
